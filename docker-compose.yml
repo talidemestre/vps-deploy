@@ -1,0 +1,38 @@
+version: "2.0"
+
+services:
+
+  traefik:
+    image: "traefik:v2.5"
+    container_name: "traefik"
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    restart: unless-stopped
+
+  talivisionwebsite:
+    image: "ghcr.io/talidemestre/homepage-react:master"
+    container_name: "tali-vision-website"
+    stdin_open: true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.talivisioniwebsite.rule=Host(`www.tali.vision`) || Host(`tali.vision`)"
+      - "traefik.http.routers.talivisonwebsite.entrypoints=web"
+      - "traefik.http.services.talivisionwebsite.loadbalancer.server.port=3000"
+    restart: unless-stopped
+
+  whoami:
+    image: "traefik/whoami"
+    container_name: "simple-service"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.tali.vision`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
