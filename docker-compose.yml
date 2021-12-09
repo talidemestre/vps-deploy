@@ -24,7 +24,8 @@ services:
     stdin_open: true
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.talivisioniwebsite.rule=Host(`www.tali.vision`) || Host(`tali.vision`)"
+      - "traefik.http.routers.talivisioniwebsite.rule=Host(`tali.vision`)"
+      - "traefik.http.routers.wildcard_site_secured.rule=PathPrefix(`/`)"
       - "traefik.http.routers.talivisonwebsite.entrypoints=web"
       - "traefik.http.services.talivisionwebsite.loadbalancer.server.port=3000"
     restart: unless-stopped
