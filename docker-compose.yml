@@ -18,6 +18,27 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     restart: unless-stopped
 
+  code:
+    image: "codercom/code-server"
+    container_name: "code-server"
+    environment:
+      - 'PASSWORD=${CODE_PASSWORD}'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.code.rule=Host(`code.tali.vision`)"
+      - "traefik.http.routers.code.entrypoints=web" 
+      - "traefik.http.services.code.loadbalancer.server.port=8080"  
+    restart: unless-stopped 
+
+  whoami:
+    image: "traefik/whoami"
+    container_name: "simple-service"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.tali.vision`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+    restart: unless-stopped
+
   talivisionwebsite:
     image: "ghcr.io/talidemestre/homepage-react:master"
     container_name: "tali-vision-website"
@@ -30,10 +51,3 @@ services:
       - "traefik.http.services.talivisionwebsite.loadbalancer.server.port=3000"
     restart: unless-stopped
 
-  whoami:
-    image: "traefik/whoami"
-    container_name: "simple-service"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.tali.vision`)"
-      - "traefik.http.routers.whoami.entrypoints=web"
