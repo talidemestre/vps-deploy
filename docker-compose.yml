@@ -9,7 +9,6 @@ services:
       #- "--log.level=DEBUG"
       - "--api.insecure=true"
       - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
     ports:
       - "80:80"
@@ -19,15 +18,16 @@ services:
     restart: unless-stopped
 
   code:
-    image: "codercom/code-server"
+    image: lscr.io/linuxserver/code-server    
     container_name: "code-server"
-    environment:
-      - 'PASSWORD=${CODE_PASSWORD}'
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.code.rule=Host(`code.tali.vision`)"
       - "traefik.http.routers.code.entrypoints=web" 
-      - "traefik.http.services.code.loadbalancer.server.port=8080"  
+      - "traefik.http.services.code.loadbalancer.server.port=8443"  
+      - "traefik.http.routers.code.middlewares=traefik-forward-auth" 
+    ports:
+      - 8443:8443
     restart: unless-stopped 
 
   whoami:
@@ -51,3 +51,22 @@ services:
       - "traefik.http.services.talivisionwebsite.loadbalancer.server.port=3000"
     restart: unless-stopped
 
+  traefik-forward-auth:
+    image: thomseddon/traefik-forward-auth:latest
+    container_name: "traefik-forward-auth" 
+    environment:
+      - LOG_LEVEL=DEBUG
+      - WHITELIST=github@tali.vision
+      - DEFAULT_PROVIDER=generic-oauth
+      - PROVIDERS_GENERIC_OAUTH_AUTH_URL=https://github.com/login/oauth/authorize
+      - PROVIDERS_GENERIC_OAUTH_TOKEN_URL=https://github.com/login/oauth/access_token
+      - PROVIDERS_GENERIC_OAUTH_USER_URL=https://api.github.com/user
+      - PROVIDERS_GENERIC_OAUTH_CLIENT_ID=${GITHUB_OAUTH_CLIENT_ID}
+      - PROVIDERS_GENERIC_OAUTH_CLIENT_SECRET=${GITHUB_OAUTH_CLIENT_SECRET}      
+      - SECRET=${RANDOM_SECRET}
+      - INSECURE_COOKIE=true # Example assumes no https, do not use in production
+    labels:
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
+      - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
+    restart: unless-stopped
