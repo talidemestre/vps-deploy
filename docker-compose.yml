@@ -64,7 +64,6 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.talivisionwebsite.rule=Host(`tali.vision`) || Host(`www.tali.vision`)"
-      - "traefik.http.routers.wildcard_site_secured.rule=PathPrefix(`/`)"
       - "traefik.http.routers.talivisionwebsite.entrypoints=websecure"
       - "traefik.http.routers.talivisionwebsite.tls.certresolver=letsencrypt" 
       - "traefik.http.services.talivisionwebsite.loadbalancer.server.port=3000"
