@@ -10,11 +10,19 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--certificatesResolvers.le.acme.email=github@tali.vision"
+      - "--certificatesResolvers.le.acme.storage=acme.json"
+      - "--certificatesResolvers.le.acme.tlsChallenge=true"
+      - "--certificatesResolvers.le.acme.httpChallenge=true"
+      - "--certificatesResolvers.le.acme.httpChallenge.entryPoint=web"
     ports:
       - "80:80"
+      - "443:443"
       - "8080:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./resource/acme.json:/acme.json"
     restart: unless-stopped
 
   code:
@@ -37,12 +45,16 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.whoami.rule=Host(`whoami.tali.vision`)"
       - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.routers.whoami.tls=true"
+      - "traefik.http.routers.whoami.tls.certresolver=le"
     restart: unless-stopped
 
   talivisionwebsite:
     image: "ghcr.io/talidemestre/homepage-react:master"
     container_name: "tali-vision-website"
     stdin_open: true
+    logging:
+        driver: none
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.talivisioniwebsite.rule=Host(`tali.vision`)"
