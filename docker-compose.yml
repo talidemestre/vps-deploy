@@ -6,16 +6,15 @@ services:
     image: "traefik:v2.5"
     container_name: "traefik"
     command:
-      #- "--log.level=DEBUG"
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entryPoints.websecure.address=:443"
-      - "--certificatesResolvers.le.acme.email=github@tali.vision"
-      - "--certificatesResolvers.le.acme.storage=acme.json"
-      - "--certificatesResolvers.le.acme.tlsChallenge=true"
-      - "--certificatesResolvers.le.acme.httpChallenge=true"
-      - "--certificatesResolvers.le.acme.httpChallenge.entryPoint=web"
+      - "--certificatesResolvers.letsencrypt.acme.email=github@tali.vision"
+      - "--certificatesResolvers.letsencrypt.acme.storage=acme.json"
+      - "--certificatesResolvers.letsencrypt.acme.tlsChallenge=true"
+      - "--certificatesResolvers.letsencrypt.acme.httpChallenge=true"
+      - "--certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=web"
     ports:
       - "80:80"
       - "443:443"
@@ -23,6 +22,13 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./resource/acme.json:/acme.json"
+    labels:
+      # Redirect all HTTP to HTTPS permanently
+      - "traefik.enable=true"
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:[a-z-.]+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"    
     restart: unless-stopped
 
   code:
@@ -31,7 +37,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.code.rule=Host(`code.tali.vision`)"
-      - "traefik.http.routers.code.entrypoints=web" 
+      - "traefik.http.routers.code.entrypoints=websecure"
+      - "traefik.http.routers.code.tls.certresolver=letsencrypt" 
       - "traefik.http.services.code.loadbalancer.server.port=8443"  
       - "traefik.http.routers.code.middlewares=traefik-forward-auth" 
     ports:
@@ -44,9 +51,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.whoami.rule=Host(`whoami.tali.vision`)"
-      - "traefik.http.routers.whoami.entrypoints=web"
-      - "traefik.http.routers.whoami.tls=true"
-      - "traefik.http.routers.whoami.tls.certresolver=le"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=letsencrypt"
     restart: unless-stopped
 
   talivisionwebsite:
@@ -57,9 +63,10 @@ services:
         driver: none
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.talivisioniwebsite.rule=Host(`tali.vision`)"
+      - "traefik.http.routers.talivisionwebsite.rule=Host(`tali.vision`) || Host(`www.tali.vision`)"
       - "traefik.http.routers.wildcard_site_secured.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.talivisonwebsite.entrypoints=web"
+      - "traefik.http.routers.talivisionwebsite.entrypoints=websecure"
+      - "traefik.http.routers.talivisionwebsite.tls.certresolver=letsencrypt" 
       - "traefik.http.services.talivisionwebsite.loadbalancer.server.port=3000"
     restart: unless-stopped
 
