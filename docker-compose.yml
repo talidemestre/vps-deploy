@@ -10,7 +10,7 @@ services:
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entryPoints.websecure.address=:443"
-      - "--certificatesResolvers.letsencrypt.acme.email=github@tali.vision"
+      - "--certificatesResolvers.letsencrypt.acme.email=github.${DOMAIN}"
       - "--certificatesResolvers.letsencrypt.acme.storage=acme.json"
       - "--certificatesResolvers.letsencrypt.acme.tlsChallenge=true"
       - "--certificatesResolvers.letsencrypt.acme.httpChallenge=true"
@@ -36,7 +36,7 @@ services:
     container_name: "code-server"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.code.rule=Host(`code.tali.vision`)"
+      - "traefik.http.routers.code.rule=Host(`code.${DOMAIN}`)"
       - "traefik.http.routers.code.entrypoints=websecure"
       - "traefik.http.routers.code.tls.certresolver=letsencrypt" 
       - "traefik.http.services.code.loadbalancer.server.port=8443"  
@@ -47,26 +47,26 @@ services:
 
   whoami:
     image: "traefik/whoami"
-    container_name: "simple-service"
+    container_name: "whoami"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.tali.vision`)"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls.certresolver=letsencrypt"
     restart: unless-stopped
 
-  talivisionwebsite:
+  main-website:
     image: "ghcr.io/talidemestre/homepage-react:master"
-    container_name: "tali-vision-website"
+    container_name: "main-website"
     stdin_open: true
     logging:
         driver: none
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.talivisionwebsite.rule=Host(`tali.vision`) || Host(`www.tali.vision`)"
-      - "traefik.http.routers.talivisionwebsite.entrypoints=websecure"
-      - "traefik.http.routers.talivisionwebsite.tls.certresolver=letsencrypt" 
-      - "traefik.http.services.talivisionwebsite.loadbalancer.server.port=3000"
+      - "traefik.http.routers.mainwebsite.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)"
+      - "traefik.http.routers.mainwebsite.entrypoints=websecure"
+      - "traefik.http.routers.mainwebsite.tls.certresolver=letsencrypt" 
+      - "traefik.http.services.mainwebsite.loadbalancer.server.port=3000"
     restart: unless-stopped
 
   traefik-forward-auth:
