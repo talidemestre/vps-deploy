@@ -74,7 +74,7 @@ services:
     container_name: "traefik-forward-auth" 
     environment:
       - LOG_LEVEL=DEBUG
-      - WHITELIST=github@tali.vision
+      - WHITELIST=${WHITELIST}
       - DEFAULT_PROVIDER=generic-oauth
       - PROVIDERS_GENERIC_OAUTH_AUTH_URL=https://github.com/login/oauth/authorize
       - PROVIDERS_GENERIC_OAUTH_TOKEN_URL=https://github.com/login/oauth/access_token
