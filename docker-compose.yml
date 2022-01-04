@@ -34,6 +34,8 @@ services:
   code:
     image: lscr.io/linuxserver/code-server    
     container_name: "code-server"
+    logging:
+        driver: none
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.code.rule=Host(`code.${DOMAIN}`)"
@@ -45,6 +47,29 @@ services:
       - 8443:8443
     restart: unless-stopped 
 
+  cryptpad:
+    image: promasu/cryptpad:nginx
+    container_name: cryptpad
+    stdin_open: true
+    volumes:
+      - ./resource/cryptpad/data/blob:/cryptpad/blob
+      - ./resource/cryptpad/data/block:/cryptpad/block
+      - ./resource/cryptpad/customize:/cryptpad/customize
+      - ./resource/cryptpad/data/data:/cryptpad/data
+      - ./resource/cryptpad/data/files:/cryptpad/datastore
+      - ./resource/cryptpad/data/config.js:/cryptpad/config/config.js
+    environment:
+      - "CPAD_MAIN_DOMAIN=office.${DOMAIN}"
+      - "CPAD_SANDBOX_DOMAIN=edit.office.${DOMAIN}"
+      - "CPAD_HTTP2_DISABLE=true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.office.rule=Host(`office.${DOMAIN}`, `edit.office.${DOMAIN}`)"
+      - "traefik.http.routers.office.entrypoints=websecure"
+      - "traefik.http.routers.office.tls.certresolver=letsencrypt" 
+      - "traefik.http.services.office.loadbalancer.server.port=80"  
+
+  
   whoami:
     image: "traefik/whoami"
     container_name: "whoami"
@@ -67,7 +92,7 @@ services:
       - "traefik.http.routers.mainwebsite.entrypoints=websecure"
       - "traefik.http.routers.mainwebsite.tls.certresolver=letsencrypt" 
       - "traefik.http.services.mainwebsite.loadbalancer.server.port=3000"
-    restart: unless-stopped
+
 
   traefik-forward-auth:
     image: thomseddon/traefik-forward-auth:latest
