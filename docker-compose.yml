@@ -84,14 +84,12 @@ services:
     image: "ghcr.io/talidemestre/homepage-react:master"
     container_name: "main-website"
     stdin_open: true
-    logging:
-        driver: none
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mainwebsite.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)"
       - "traefik.http.routers.mainwebsite.entrypoints=websecure"
       - "traefik.http.routers.mainwebsite.tls.certresolver=letsencrypt" 
-      - "traefik.http.services.mainwebsite.loadbalancer.server.port=3000"
+      - "traefik.http.services.mainwebsite.loadbalancer.server.port=80"
 
 
   traefik-forward-auth:
