@@ -2,13 +2,21 @@
 Deploy all my apps with traefik! Configured for [tali.vision](tali.vision).
 
 ## 1. Create .env file
-A `.env` file must exist in the same directory as `docker-compose.yml`, and must contain the following fields:
+A `.env` file must exist in the same directory as `docker-compose.yml` . An example is included as `sample.env`. Minimally the following fields should be included:
 ```sh
 GITHUB_OAUTH_CLIENT_ID=<github oauth client id>
 GITHUB_OAUTH_CLIENT_SECRET=<github oauth client secret>
 RANDOM_SECRET=<some random secret value for auth>
 DOMAIN=<your domain i.e. tali.vision>
 WHITELIST=<primary emails associated with github accounts granted access to authenticated apps>
+
+# EMAIL CONFIG
+DATABASE_USER_PASSWORD=<mariadb password>
+RSPAMD_PASSWORD=<spam domain password>
+MAILSERVER_HOSTNAME=mail
+MAILSERVER_DOCKER_TAG=1.1.1
+VOLUMES_ROOT_PATH=./resource/mail/
+
 ```
 
 ## 2. Ensure ACME file exists.
@@ -26,10 +34,32 @@ These folders must be owned by userid 4001, as per CryptPad requirements. This c
 ```sh
 sudo chown -R 4001:4001 resource/cryptpad
 ```
-The `resource/cryptpad/data/config.json` file must also be updated with the correct domains in the `httpSafeOrigin` and `httpUnsafeOrigin` fields.
+The `resource/cryptpad/data/config.js` file must also be updated with the correct domains in the `httpSafeOrigin` and `httpUnsafeOrigin` fields.
 
 ## 4. Deployment
 The applications can now be deployed using `docker-compose`. I recommend deploying in detached mode, so that an SSH session can be terminated while the apps continue to run. To achieve this, run the following from the same directory as `docker-compose.yml`.
 ```
 docker-compose up -d
 ```
+
+## 5. Sysadmin the Email Accounts
+Email will not work straight away, a few things should be done to get this working. Refer to initial configuration at [this address](https://github.com/mailserver2/mailserver/wiki) for full instructions.
+### 5.1. Set up Postfixadmin
+You must go to the setup page at https://postfixadmin.domain.tld/setup.php and define a setup password. This will provide you with a hash, which you must set by execing into the docker container like so.
+
+```sh
+$ docker exec -ti postfixadmin setup
+Postfixadmin setup hash : <YOUR HASH>
+Setup done.
+```
+
+You can set up accounts here which you can then login to from `webmail.domain.tld`.
+
+### 5.2. Create an SPF Record
+Use your name registrar to create an SPF record which prevents spammers from using your email domain to send unauthenticated emails. This should simply contain the following text:
+```
+v=spf1 ip4:<mail server IP> -all 
+```
+
+### 5.3. Use the Email
+From here, you can create emails using the Postfixadmin console which can both send and receive!

@@ -6,19 +6,21 @@ services:
     image: "traefik:v2.5"
     container_name: "traefik"
     command:
+      # HTTP & HTTPS 
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entryPoints.websecure.address=:443"
-      - "--certificatesResolvers.letsencrypt.acme.email=github.${DOMAIN}"
+      # TLS Encryption
+      - "--certificatesResolvers.letsencrypt.acme.email=github@${DOMAIN}"
       - "--certificatesResolvers.letsencrypt.acme.storage=acme.json"
       - "--certificatesResolvers.letsencrypt.acme.tlsChallenge=true"
       - "--certificatesResolvers.letsencrypt.acme.httpChallenge=true"
       - "--certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=web"
     ports:
+      # HTTP & HTTPS
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./resource/acme.json:/acme.json"
@@ -69,7 +71,6 @@ services:
       - "traefik.http.routers.office.tls.certresolver=letsencrypt" 
       - "traefik.http.services.office.loadbalancer.server.port=80"  
 
-  
   whoami:
     image: "traefik/whoami"
     container_name: "whoami"
@@ -90,8 +91,8 @@ services:
       - "traefik.http.routers.mainwebsite.entrypoints=websecure"
       - "traefik.http.routers.mainwebsite.tls.certresolver=letsencrypt" 
       - "traefik.http.services.mainwebsite.loadbalancer.server.port=80"
-
-
+    restart: unless-stopped
+ 
   traefik-forward-auth:
     image: thomseddon/traefik-forward-auth:latest
     container_name: "traefik-forward-auth" 
@@ -105,9 +106,131 @@ services:
       - PROVIDERS_GENERIC_OAUTH_CLIENT_ID=${GITHUB_OAUTH_CLIENT_ID}
       - PROVIDERS_GENERIC_OAUTH_CLIENT_SECRET=${GITHUB_OAUTH_CLIENT_SECRET}      
       - SECRET=${RANDOM_SECRET}
-      - INSECURE_COOKIE=true # Example assumes no https, do not use in production
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
     restart: unless-stopped
+
+#EMAIL 
+  mailserver:
+    image: mailserver2/mailserver:${MAILSERVER_DOCKER_TAG}
+    restart: unless-stopped
+    domainname: ${DOMAIN}                    # Mail server A/MX/FQDN & reverse PTR = mail.domain.tld.
+    hostname: ${MAILSERVER_HOSTNAME}
+    # extra_hosts:                          - Required for external database (on other server or for local database on host)
+    #  - "mariadb:xx.xx.xx.xx"              - Replace with IP address of MariaDB server
+    #  - "redis:xx.xx.xx.xx"                - Replace with IP address of Redis server
+    ports:
+      - "25:25"       # SMTP                - Required
+    # - "110:110"     # POP3       STARTTLS - Optional - For webmails/desktop clients
+      - "143:143"     # IMAP       STARTTLS - Optional - For webmails/desktop clients
+    # - "465:465"     # SMTPS      SSL/TLS  - Optional - Enabled for compatibility reason, otherwise disabled
+      - "587:587"     # Submission STARTTLS - Optional - For webmails/desktop clients
+      - "993:993"     # IMAPS      SSL/TLS  - Optional - For webmails/desktop clients
+    # - "995:995"     # POP3S      SSL/TLS  - Optional - For webmails/desktop clients
+      - "4190:4190"   # SIEVE      STARTTLS - Optional - Recommended for mail filtering
+    # - "11334:11334" # HTTP                - Optional - Rspamd WebUI
+    environment:
+      - DBPASS=${DATABASE_USER_PASSWORD}       # MariaDB database password (required)
+      - RSPAMD_PASSWORD=${RSPAMD_PASSWORD}     # Rspamd WebUI password (required)
+    # - DEBUG_MODE=true                        # Enable Postfix, Dovecot, Rspamd and Unbound verbose logging
+    # - ENABLE_POP3=true                       # Enable POP3 protocol
+    # - ENABLE_FETCHMAIL=true                  # Enable fetchmail forwarding
+    # - DISABLE_RATELIMITING=false             # Enable ratelimiting policy
+    # - DISABLE_CLAMAV=true                    # Disable virus scanning
+    # - DISABLE_SIGNING=true                   # Disable DKIM/ARC signing
+    # - DISABLE_GREYLISTING=true               # Disable greylisting policy
+    # - DISABLE_VHOSTS_OWNERSHIP_SET=true     # Disable vhosts directory ownship set (useful, when you have lots of mailboxes)
+    #
+    # Full list : https://github.com/hardware/mailserver#environment-variables
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=http_network"
+      - "traefik.http.routers.spam.entrypoints=websecure"
+      - "traefik.http.routers.spam.rule=Host(`spam.${DOMAIN}`)"
+      - "traefik.http.routers.spam.service=spam"
+      - "traefik.http.routers.spam.tls=true"
+      - "traefik.http.routers.spam.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.spam.tls.domains[0].main=${MAILSERVER_HOSTNAME}.${DOMAIN}"
+      - "traefik.http.routers.spam.tls.domains[0].sans=spam.${DOMAIN}"
+      - "traefik.http.routers.spam.tls.options=default"
+      - "traefik.http.services.spam.loadbalancer.server.port=11334"
+      - "traefik.http.services.spam.loadbalancer.server.scheme=http"
+    volumes:
+      - ${VOLUMES_ROOT_PATH}/mail:/var/mail
+      - ${VOLUMES_ROOT_PATH}/traefik/acme:/etc/letsencrypt/acme
+    depends_on:
+      - mariadb
+      - redis
+
+  # Administration interface
+  # Configuration : https://github.com/hardware/mailserver/wiki/Postfixadmin-initial-configuration
+  postfixadmin:
+    image: mailserver2/postfixadmin
+    restart: unless-stopped
+    domainname: ${DOMAIN}
+    hostname: ${MAILSERVER_HOSTNAME}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=http_network"
+      - "traefik.http.routers.postfixadmin.entrypoints=websecure"
+      - "traefik.http.routers.postfixadmin.rule=Host(`postfixadmin.${DOMAIN}`)"
+      - "traefik.http.routers.postfixadmin.service=postfixadmin"
+      - "traefik.http.routers.postfixadmin.tls=true"
+      - "traefik.http.routers.postfixadmin.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.postfixadmin.tls.domains[0].main=postfixadmin.${DOMAIN}"
+      - "traefik.http.routers.postfixadmin.tls.options=default"
+      - "traefik.http.services.postfixadmin.loadbalancer.server.port=8888"
+    environment:
+      - DBPASS=${DATABASE_USER_PASSWORD}
+    depends_on:
+      - mailserver
+      - mariadb
+
+  # Webmail
+  # Configuration : https://github.com/hardware/mailserver/wiki/Rainloop-initial-configuration
+  rainloop:
+    image: mailserver2/rainloop
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=http_network"
+      - "traefik.http.routers.rainloop.entrypoints=websecure"
+      - "traefik.http.routers.rainloop.rule=Host(`webmail.${DOMAIN}`)"
+      - "traefik.http.routers.rainloop.service=rainloop"
+      - "traefik.http.routers.rainloop.tls=true"
+      - "traefik.http.routers.rainloop.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.rainloop.tls.domains[0].main=webmail.${DOMAIN}"
+      - "traefik.http.routers.rainloop.tls.options=default"
+      - "traefik.http.services.rainloop.loadbalancer.server.port=8888"
+    volumes:
+      - ${VOLUMES_ROOT_PATH}/rainloop:/rainloop/data
+    depends_on:
+      - mailserver
+      - mariadb
+
+  # Database
+  # https://github.com/docker-library/mariadb
+  # https://mariadb.org/
+  mariadb:
+    image: mariadb:10.5
+    restart: unless-stopped
+    # Info : These variables are ignored when the volume already exists (if databases was created before).
+    environment:
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+      - MYSQL_DATABASE=postfix
+      - MYSQL_USER=postfix
+      - MYSQL_PASSWORD=${DATABASE_USER_PASSWORD}
+    volumes:
+      - ${VOLUMES_ROOT_PATH}/mysql/db:/var/lib/mysql
+
+  # Cache Database
+  # https://github.com/docker-library/redis.
+  # https://redis.io/
+  redis:
+    image: redis:6.0-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - ${VOLUMES_ROOT_PATH}/redis/db/:/data
