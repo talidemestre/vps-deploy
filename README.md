@@ -55,11 +55,16 @@ Setup done.
 
 You can set up accounts here which you can then login to from `webmail.domain.tld`.
 
-### 5.2. Create an SPF Record
+### 5.2. Set up Rainloop
+An admin account will need to be setup. Navigate to https://webmail.domain.tld/?admin and login with 'admin' and '12345'.
+
+Then configure the 'Domain' tab as per this page https://github.com/mailserver2/mailserver/wiki/Rainloop-initial-configuration/ . Generally, this means use the default ports, add your TLD to each field, use SSL/TLS for IMAP, and use STARTTLS for SMTP and SIEVE. Leave the whitelist empty.
+
+### 5.3. Create an SPF Record
 Use your name registrar to create an SPF record which prevents spammers from using your email domain to send unauthenticated emails. This should simply contain the following text:
 ```
 v=spf1 ip4:<mail server IP> -all 
 ```
 
-### 5.3. Use the Email
+### 5.4. Use the Email
 From here, you can create emails using the Postfixadmin console which can both send and receive!
