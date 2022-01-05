@@ -3,3 +3,6 @@
 resource/acme.json
 resource/cryptpad/*
 resource/mail/*
+resource/jupyter/*
+resource/codeserver/*
+resource/cyberchef/*

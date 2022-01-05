@@ -44,9 +44,45 @@ services:
       - "traefik.http.routers.code.entrypoints=websecure"
       - "traefik.http.routers.code.tls.certresolver=letsencrypt" 
       - "traefik.http.services.code.loadbalancer.server.port=8443"  
-      - "traefik.http.routers.code.middlewares=traefik-forward-auth" 
-    ports:
-      - 8443:8443
+      - "traefik.http.routers.code.middlewares=traefik-forward-auth"
+    volumes:
+      - ./resource/codeserver:/config 
+    restart: unless-stopped 
+
+  cyberchef:
+    image: mpepping/cyberchef    
+    container_name: "cyberchef"
+    logging:
+        driver: none
+    volumes:
+      - ./resource/cyberchef:/srv
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cyberchef.rule=Host(`cyberchef.${DOMAIN}`)"
+      - "traefik.http.routers.cyberchef.entrypoints=websecure"
+      - "traefik.http.routers.cyberchef.tls.certresolver=letsencrypt" 
+      - "traefik.http.services.cyberchef.loadbalancer.server.port=8000"  
+      - "traefik.http.routers.cyberchef.middlewares=traefik-forward-auth" 
+    restart: unless-stopped 
+  
+  jupyter:
+    image: jupyter/datascience-notebook    
+    container_name: "jupyter"
+    logging:
+        driver: none
+    volumes:
+      - "./resource/jupyter:/home/jovyan"
+    environment: 
+      - JUPYTER_ENABLE_LAB=yes 
+      - RESTARTABLE=yes 
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jupyter.rule=Host(`jupyter.${DOMAIN}`)"
+      - "traefik.http.routers.jupyter.entrypoints=websecure"
+      - "traefik.http.routers.jupyter.tls.certresolver=letsencrypt" 
+      - "traefik.http.services.jupyter.loadbalancer.server.port=8888"  
+      - "traefik.http.routers.jupyter.middlewares=traefik-forward-auth" 
+    command: "jupyter notebook --ip='*' --NotebookApp.token='' --NotebookApp.password=''"
     restart: unless-stopped 
 
   cryptpad:
