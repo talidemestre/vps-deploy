@@ -1,5 +1,5 @@
 # VPS Deployment
-Deploy all my apps with traefik! Configured for [https://tali.vision](tali.vision).
+Deploy all my apps with traefik! Configured for [tali.vision](https://tali.vision).
 
 ## 1. Create .env file
 A `.env` file must exist in the same directory as `docker-compose.yml` . An example is included as `sample.env`. Minimally the following fields should be included:
