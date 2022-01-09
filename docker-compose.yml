@@ -33,6 +33,18 @@ services:
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"    
     restart: unless-stopped
 
+  doom:
+    image: ghcr.io/talidemestre/doom-dos-dockerized:main    
+    container_name: "doom"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.doom.rule=Host(`doom.${DOMAIN}`)"
+      - "traefik.http.routers.doom.entrypoints=websecure"
+      - "traefik.http.routers.doom.tls.certresolver=letsencrypt" 
+      - "traefik.http.services.doom.loadbalancer.server.port=8000"  
+      - "traefik.http.routers.doom.middlewares=traefik-forward-auth"
+    restart: unless-stopped 
+
   code:
     image: lscr.io/linuxserver/code-server    
     container_name: "code-server"
@@ -48,7 +60,7 @@ services:
     volumes:
       - ./resource/codeserver:/config 
     restart: unless-stopped 
-
+  
   cyberchef:
     image: mpepping/cyberchef    
     container_name: "cyberchef"
